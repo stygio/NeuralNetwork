@@ -1,4 +1,5 @@
 import fileHandling
+import xlsParser
 import helpers
 import classes
 import random
@@ -8,10 +9,11 @@ def initialize_network(data_filename):
 	weight_range_l = -0.1
 	weight_range_h = 0.1
 	sig_choice = 1
-	eta = 1
+	eta = 0.1
 
-	[tmpIn, tmpExp] = fileHandling.readData(data_filename)
-	categories = np.unique(tmpExp)		# Need to add condition for if something can be classified in more than 1 category?
+	#[tmpIn, tmpExp] = fileHandling.readData(data_filename)
+	#categories = np.unique(tmpExp)
+	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
 	nr_categories = len(categories)
 	trInput = classes.NN_Input(values=np.array(tmpIn))
 	trExpected = classes.NN_Output(values=np.array(tmpExp))
@@ -70,6 +72,7 @@ def initialize_network(data_filename):
 
 		# Error propagation phase
 		# Output layer
+		nnIn = []
 		nnExp = []
 		nnOut = []
 		for i in range(len(NeuralNetwork.layers[nr_layers].neurons)):
@@ -78,7 +81,10 @@ def initialize_network(data_filename):
 			nnExp.append(trExpected.values[n, i])
 			nnOut.append(NeuralNetwork.layers[nr_layers].neurons[i].y)
 		# Printing results for loop <n>
-		print("Training phase {0}: Expected {1}, Output {2}".format(n, nnExp, nnOut))
+		nnIn.append(trInput.values[n])
+		#nnIn = ["%.2f" % float(elem) for elem in nnIn]
+		#nnOut = ["%.2f" % float(elem) for elem in nnOut]
+		print("Training phase {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
 		trOutput.values.append(nnOut)	# Adding results to output table
 		# Lower layers
 		for l in range(nr_layers-1, -1, -1):

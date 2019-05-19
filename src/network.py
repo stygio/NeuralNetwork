@@ -5,12 +5,9 @@ import classes
 import random
 import numpy as np
 
-def initialize_network(data_filename):
-	weight_range_l = -0.1
-	weight_range_h = 0.1
-	sig_choice = 1
-	eta = 0.1
+def initialize_network(data_filename, weight_range_l, weight_range_h, sig_choice, eta, training_loops):
 
+	# Read data
 	#[tmpIn, tmpExp] = fileHandling.readData(data_filename)
 	#categories = np.unique(tmpExp)
 	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
@@ -23,18 +20,21 @@ def initialize_network(data_filename):
 	NeuralNetwork = classes.Network(layers=[])
 	nr_layers = int(input("-> Enter desired number of layers: "))
 	for i in range(nr_layers):
-		print("Layer {0}".format(i))
+		#print("Layer {0}".format(i))
 		tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
-		# print("Desired number of neurons = {0}".format(tmp_number))
 		NeuralNetwork.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
 
 	# The output layer (as many neurons as there are possible outputs)
 	NeuralNetwork.add_layer(classes.Layer(nr_neurons=nr_categories, neurons=[]))	
 
 	# Add connections into the network
+	InputList = []
+	for i in range(trInput.values.shape[1]):
+		InputList.append(classes.Input_Value())
 	for i in range(len(NeuralNetwork.layers[0].neurons)):	# Amount of neurons in the layer
 		for j in range(trInput.values.shape[1]):	# Amount of inputs going into the network
 			NeuralNetwork.layers[0].neurons[i].add_input(classes.Synapse(s_out=NeuralNetwork.layers[0].neurons[i], s_weight=random.uniform(weight_range_l, weight_range_h)))
+			NeuralNetwork.layers[0].neurons[i].inputs[j].input = InputList[j]
 
 	# Add connections out of the network
 	for i in range(len(NeuralNetwork.layers[nr_layers-1].neurons)):		# Amount of neurons in the layer
@@ -52,51 +52,71 @@ def initialize_network(data_filename):
 				NeuralNetwork.layers[l+1].neurons[j].add_input(NeuralNetwork.layers[l].neurons[i].outputs[j])
 
 	# Training phase
-	for n in range(trInput.values.shape[0]): # For each line of input data
-		# Input propagation phase
-		# Layer 0 (Possibly simplified by making additional inputs neurons with just a y value)
-		for i in range(len(NeuralNetwork.layers[0].neurons)):
-			# Calculate the weighted sum for neuron <i>
-			NeuralNetwork.layers[0].neurons[i].S = 0
-			for j in range(len(NeuralNetwork.layers[0].neurons[i].inputs)):
-				NeuralNetwork.layers[0].neurons[i].S += trInput.values[n, j] * NeuralNetwork.layers[0].neurons[i].inputs[j].weight
-			NeuralNetwork.layers[0].neurons[i].y = helpers.sigmoid_function(NeuralNetwork.layers[0].neurons[i].S, choice=sig_choice)
-		# Following layers
-		for l in range(nr_layers):
-			for i in range(len(NeuralNetwork.layers[l+1].neurons)):	# For hidden layer <l+1>
-				# Calculate the weighted sum for neuron <i>
-				NeuralNetwork.layers[l+1].neurons[i].S = 0
-				for j in range(len(NeuralNetwork.layers[l+1].neurons[i].inputs)):
-					NeuralNetwork.layers[l+1].neurons[i].S += NeuralNetwork.layers[l].neurons[j].y * NeuralNetwork.layers[l+1].neurons[i].inputs[j].weight
-				NeuralNetwork.layers[l+1].neurons[i].y = helpers.sigmoid_function(NeuralNetwork.layers[l+1].neurons[i].S, choice=sig_choice)
+	for m in range(training_loops):
+		for n in range(trInput.values.shape[0]): # For each line of input data
+			# Input propagation phase
+			for i in range(trInput.values.shape[1]): 	# Number of inputs
+				InputList[i].y = trInput.values[n, i]			# Set input values
+			NeuralNetwork.input_propagation(choice=1)
 
-		# Error propagation phase
-		# Output layer
+			# Error propagation phase
+			NeuralNetwork.error_propagation(trExpected.values[n, :], eta)
+
+			# Printing results for phase <n>
+			nnIn = []
+			nnExp = []
+			nnOut = []
+			for i in range(len(NeuralNetwork.layers[nr_layers].neurons)):
+				nnExp.append(trExpected.values[n, i])
+				nnOut.append(NeuralNetwork.layers[nr_layers].neurons[i].y)
+			# Printing results for loop <n>
+			nnIn.append(trInput.values[n])
+			#nnIn = ["%.2f" % float(elem) for elem in nnIn]
+			nnOut = ["%.2f" % float(elem) for elem in nnOut]
+			# print("Training phase {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
+			trOutput.values.append(nnOut)	# Adding results to output table
+
+			# NeuralNetwork.debug() # Print out all values in the network (i.e. synapse weights)
+
+	return NeuralNetwork
+
+
+def run_network(data_filename, NeuralNetwork, sig_choice):
+
+	# Read data
+	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
+	nr_categories = len(categories)
+	netInput = classes.NN_Input(values=np.array(tmpIn))
+	netExpected = classes.NN_Output(values=np.array(tmpExp))
+	netOutput = classes.NN_Output(values=[])
+
+	# Getting a list of the network's input objects
+	InputList = NeuralNetwork.get_input_list()
+
+	# Pushing the data through the network
+	for n in range(netInput.values.shape[0]): # For each line of input data
+		for i in range(netInput.values.shape[1]): 	# Number of inputs
+			InputList[i].y = netInput.values[n, i]			# Set input values
+		NeuralNetwork.input_propagation(choice=1)
+
+		# Printing results for phase <n>
 		nnIn = []
 		nnExp = []
 		nnOut = []
-		for i in range(len(NeuralNetwork.layers[nr_layers].neurons)):
-			# Calculate the error for neuron <i>
-			NeuralNetwork.layers[nr_layers].neurons[i].delta = trExpected.values[n, i] - NeuralNetwork.layers[nr_layers].neurons[i].y
-			nnExp.append(trExpected.values[n, i])
-			nnOut.append(NeuralNetwork.layers[nr_layers].neurons[i].y)
+		for i in range(len(NeuralNetwork.layers[-1].neurons)):
+			nnExp.append(netExpected.values[n, i])
+			nnOut.append(NeuralNetwork.layers[-1].neurons[i].y)
 		# Printing results for loop <n>
-		nnIn.append(trInput.values[n])
+		nnIn.append(netInput.values[n])
 		#nnIn = ["%.2f" % float(elem) for elem in nnIn]
-		#nnOut = ["%.2f" % float(elem) for elem in nnOut]
-		print("Training phase {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
-		trOutput.values.append(nnOut)	# Adding results to output table
-		# Lower layers
-		for l in range(nr_layers-1, -1, -1):
-			for i in range(len(NeuralNetwork.layers[l].neurons)):
-				# Calculate the error for neuron <i>
-				NeuralNetwork.layers[l].neurons[i].delta = 0
-				for j in range(len(NeuralNetwork.layers[l].neurons[i].outputs)):	# For each of neuron <i> synapses <j>
-					delta_n = NeuralNetwork.layers[l+1].neurons[j].delta
-					y_n = NeuralNetwork.layers[l+1].neurons[j].y
-					y_k = NeuralNetwork.layers[l].neurons[i].y
-					w_correction = -eta * delta_n * (1-y_n) * y_n * y_k						# Calculating correction of the synapse weight
-					NeuralNetwork.layers[l].neurons[i].outputs[j].weight += w_correction	# Applying it
-					NeuralNetwork.layers[l].neurons[i].delta += delta_n * NeuralNetwork.layers[l].neurons[i].outputs[j].weight * (1-y_n) * y_n
+		nnOut = ["%.2f" % float(elem) for elem in nnOut]
+		#print("Results for row {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
+		netOutput.values.append(nnOut)	# Adding results to output table
+	netOutput.values = np.array(netOutput.values)
 
-	return NeuralNetwork
+	number_correct = 0
+	for n in range(netExpected.values.shape[0]):
+		if np.argmax(netOutput.values[n, :]) == np.argmax(netExpected.values[n, :]):
+			number_correct += 1
+	percent_correct = number_correct / netExpected.values.shape[0] * 100
+	print("Percentage of correct classification: {0}%".format(percent_correct))

@@ -20,7 +20,6 @@ def initialize_network(data_filename, weight_range_l, weight_range_h, sig_choice
 	NeuralNetwork = classes.Network(layers=[])
 	nr_layers = int(input("-> Enter desired number of layers: "))
 	for i in range(nr_layers):
-		#print("Layer {0}".format(i))
 		tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
 		NeuralNetwork.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
 
@@ -57,7 +56,7 @@ def initialize_network(data_filename, weight_range_l, weight_range_h, sig_choice
 			# Input propagation phase
 			for i in range(trInput.values.shape[1]): 	# Number of inputs
 				InputList[i].y = trInput.values[n, i]			# Set input values
-			NeuralNetwork.input_propagation(choice=1)
+			NeuralNetwork.input_propagation(choice=sig_choice)
 
 			# Error propagation phase
 			NeuralNetwork.error_propagation(trExpected.values[n, :], eta)
@@ -97,7 +96,7 @@ def run_network(data_filename, NeuralNetwork, sig_choice):
 	for n in range(netInput.values.shape[0]): # For each line of input data
 		for i in range(netInput.values.shape[1]): 	# Number of inputs
 			InputList[i].y = netInput.values[n, i]			# Set input values
-		NeuralNetwork.input_propagation(choice=1)
+		NeuralNetwork.input_propagation(choice=sig_choice)
 
 		# Printing results for phase <n>
 		nnIn = []
@@ -120,3 +119,75 @@ def run_network(data_filename, NeuralNetwork, sig_choice):
 			number_correct += 1
 	percent_correct = number_correct / netExpected.values.shape[0] * 100
 	print("Percentage of correct classification: {0}%".format(percent_correct))
+
+
+def create_autoencoder(data, weight_range_l, weight_range_h, sig_choice, eta, autoencoder_loops):
+
+	dataArray = classes.NN_Input(values=np.array(data))
+	dataArray.values = helpers.normalize_2d(dataArray.values)
+	data_length = dataArray.values.shape[1]
+
+	# Create the network (list of layers which have a list of neurons)
+	AutoEncoder = classes.Network(layers=[])
+	nr_layers = int(input("-> AutoEncoder - Enter desired number of layers: "))
+	for i in range(nr_layers):
+		tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
+		AutoEncoder.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
+
+	# The output layer (as many neurons as there are possible outputs)
+	AutoEncoder.add_layer(classes.Layer(nr_neurons=data_length, neurons=[]))	
+
+	# Add connections into the network
+	InputList = []
+	for i in range(data_length):
+		InputList.append(classes.Input_Value())
+	for i in range(len(AutoEncoder.layers[0].neurons)):	# Amount of neurons in the layer
+		for j in range(data_length):	# Amount of inputs
+			AutoEncoder.layers[0].neurons[i].add_input(classes.Synapse(s_out=AutoEncoder.layers[0].neurons[i], s_weight=random.uniform(weight_range_l, weight_range_h)))
+			AutoEncoder.layers[0].neurons[i].inputs[j].input = InputList[j]
+
+	# Add connections out of the network
+	for i in range(len(AutoEncoder.layers[nr_layers-1].neurons)):		# Amount of neurons in the layer
+		for j in range(data_length):	# Amount of outputs
+			# Neuron <i> of the last AE layer has an output synapse <j> whose input is that neuron and output is neuron <j> of the output layer
+			AutoEncoder.layers[nr_layers-1].neurons[i].add_output(classes.Synapse(s_in=AutoEncoder.layers[nr_layers-1].neurons[i], s_out=AutoEncoder.layers[nr_layers].neurons[j], s_weight=random.uniform(weight_range_l, weight_range_h)))
+			# Neuron <j> of the output layer has an input synapse which is the output synpase <j> of the neuron <i> in the last NN layer
+			AutoEncoder.layers[nr_layers].neurons[j].add_input(AutoEncoder.layers[nr_layers-1].neurons[i].outputs[j])
+
+	# Add connections within the network
+	for l in range(nr_layers-1):
+		for i in range(len(AutoEncoder.layers[l].neurons)):
+			for j in range(len(AutoEncoder.layers[l+1].neurons)):
+				AutoEncoder.layers[l].neurons[i].add_output(classes.Synapse(s_in=AutoEncoder.layers[l].neurons[i], s_out=AutoEncoder.layers[l+1].neurons[j], s_weight=random.uniform(weight_range_l, weight_range_h)))
+				AutoEncoder.layers[l+1].neurons[j].add_input(AutoEncoder.layers[l].neurons[i].outputs[j])
+
+	# Training phase
+	for m in range(autoencoder_loops):
+		np.random.shuffle(dataArray.values)
+		learning_rate = eta
+		for n in range(dataArray.values.shape[0]): # For each line of input data
+			# Input propagation phase
+			for i in range(data_length): 	# Number of inputs
+				InputList[i].y = dataArray.values[n, i]			# Set input values
+			AutoEncoder.input_propagation(choice=sig_choice)
+
+			# for i in range(data_length):	# Number of outputs
+			# 	AutoEncoder.layers[nr_layers].neurons[i].y = AutoEncoder.layers[nr_layers].neurons[i].S
+
+			# Error propagation phase
+			learning_rate = 0.95*learning_rate
+			AutoEncoder.error_propagation(dataArray.values[n, :], learning_rate)
+
+			# Printing results for last phase
+			if m == autoencoder_loops-1:
+				aeOut = []
+				for i in range(len(AutoEncoder.layers[nr_layers].neurons)):
+					aeOut.append(AutoEncoder.layers[nr_layers].neurons[i].y)
+				# Printing results for loop <n>
+				aeData = ["%.2f" % float(elem) for elem in dataArray.values[n]]
+				aeOut = ["%.2f" % float(elem) for elem in aeOut]
+				print("Training phase {0}: Data {1}, Output {2}".format(n, aeData, aeOut))
+
+			#AutoEncoder.debug() # Print out all values in the network (i.e. synapse weights)
+
+	return AutoEncoder

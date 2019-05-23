@@ -4,12 +4,17 @@ import numpy
 # Call the chosen sigmoidal function
 def sigmoid_function(x, choice):
 	switcher = {
+		0: sig0,
 		1: sig1,
 		2: sig2,
 		3: sig3
 	}
 	func = switcher.get(choice, lambda:"Invalid choice")
 	return func(x)
+
+# Function which does nothing with input, mainly for simplicity in autoencoder creation
+def sig0(x):
+	return abs(x)
 
 # Logistic function with output in the domain: (0; 1)
 def sig1(x):
@@ -45,27 +50,23 @@ def sig3(x):
 	return ret
 
 
-# Calculate the weighted sum
-def weighted_sum(values, weights):
-	v = numpy.array(values)
-	w = numpy.array(weights)
-	return sum(numpy.multiply(v, w))
+# # Calculate the weighted sum
+# def weighted_sum(values, weights):
+# 	v = numpy.array(values)
+# 	w = numpy.array(weights)
+# 	return sum(numpy.multiply(v, w))
 
 
-# Normalize data values
-def normalize_data(data):
+# Normalize 1d data
+def normalize_1d(data):
 	d = numpy.array(data)
 	return (d - min(data))/(max(data) - min(data))
 
-		
 
-# # Divide data into input and expected result lists
-# def parse_data(data, nr_inputs, nr_outputs):
-# 	inputData = []
-# 	expectedResult = []
-# 	for line in data:
-# 		inputData.append(line[:nr_inputs])
-# 		expectedResult.append(line[-nr_outputs:])
-
-# 	return [inputData, expectedResult]
-
+# Normalize 2d data array by column
+def normalize_2d(data):
+	d = numpy.array(data)
+	for i in range(d.shape[1]):
+		d[:, i] = normalize_1d(d[:, i])
+	return d
+	

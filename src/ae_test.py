@@ -12,4 +12,4 @@ sig_choice = 1
 eta = 1
 loops = 300
 
-ae = network.create_autoencoder(x, weight_range_l, weight_range_h, sig_choice, eta, loops)
+encoder = network.create_autoencoder(x, weight_range_l, weight_range_h, sig_choice, eta, loops)

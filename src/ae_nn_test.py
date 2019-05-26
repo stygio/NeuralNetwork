@@ -12,6 +12,7 @@ weight_range_l = -1
 weight_range_h = 1
 sig_choice = 1
 eta = 0.5
-loops = 100
-nn = network.initialize_mlp(file_training, weight_range_l, weight_range_h, sig_choice, eta, loops)
-network.run_mlp(file_test, nn, 1)
+ae_loops = 250
+tr_loops = 100
+nn = network.initialize_autoencoder_mlp(file_training, weight_range_l, weight_range_h, sig_choice, eta, ae_loops, tr_loops)
+network.run_mlp(file_test, nn, sig_choice)

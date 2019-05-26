@@ -3,8 +3,8 @@
 import network
 import xlsParser
 
-xlsParser.read_xls_iris('../data/IrisDataTrain.xls')
-[x, y, z] = xlsParser.read_xls_iris('../data/IrisDataTrain.xls')
+xlsParser.read_xls('../data/IrisDataTrain.xls')
+[x, y, z] = xlsParser.read_xls('../data/IrisDataTrain.xls')
 
 weight_range_l = -5
 weight_range_h = 5

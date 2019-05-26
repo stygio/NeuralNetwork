@@ -11,7 +11,7 @@ def initialize_mlp(data_filename, weight_range_l, weight_range_h, sig_choice, et
 	# Read data
 	#[tmpIn, tmpExp] = fileHandling.readData(data_filename)
 	#categories = np.unique(tmpExp)
-	[tmpIn, tmpExp, categories] = xlsParser.read_xls_iris(data_filename)
+	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
 	nr_categories = len(categories)
 	trInput = classes.NN_Input(values=np.array(helpers.normalize_2d(tmpIn)))
 	trExpected = classes.NN_Output(values=np.array(tmpExp))
@@ -21,7 +21,7 @@ def initialize_mlp(data_filename, weight_range_l, weight_range_h, sig_choice, et
 	NeuralNetwork = classes.Network(layers=[])
 	nr_layers = int(input("-> Enter desired number of layers: "))
 	for i in range(nr_layers):
-		tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
+		tmp_number = int(input("Enter desired number of neurons in layer {0}: ".format(i)))
 		NeuralNetwork.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
 
 	# The output layer (as many neurons as there are possible outputs)
@@ -82,48 +82,6 @@ def initialize_mlp(data_filename, weight_range_l, weight_range_h, sig_choice, et
 
 
 
-def run_mlp(data_filename, NeuralNetwork, sig_choice):
-
-	# Read data
-	[tmpIn, tmpExp, categories] = xlsParser.read_xls_iris(data_filename)
-	nr_categories = len(categories)
-	netInput = classes.NN_Input(values=np.array(helpers.normalize_2d(tmpIn)))
-	netExpected = classes.NN_Output(values=np.array(tmpExp))
-	netOutput = classes.NN_Output(values=[])
-
-	# Getting a list of the network's input objects
-	InputList = NeuralNetwork.get_input_list()
-
-	# Pushing the data through the network
-	for n in range(netInput.values.shape[0]): # For each line of input data
-		for i in range(netInput.values.shape[1]): 	# Number of inputs
-			InputList[i].y = netInput.values[n, i]			# Set input values
-		NeuralNetwork.input_propagation(choice=sig_choice)
-
-		# Printing results for phase <n>
-		nnIn = []
-		nnExp = []
-		nnOut = []
-		for i in range(len(NeuralNetwork.layers[-1].neurons)):
-			nnExp.append(netExpected.values[n, i])
-			nnOut.append(NeuralNetwork.layers[-1].neurons[i].y)
-		# Printing results for loop <n>
-		nnIn.append(netInput.values[n])
-		#nnIn = ["%.2f" % float(elem) for elem in nnIn]
-		nnOut = ["%.2f" % float(elem) for elem in nnOut]
-		#print("Results for row {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
-		netOutput.values.append(nnOut)	# Adding results to output table
-	netOutput.values = np.array(netOutput.values)
-
-	number_correct = 0
-	for n in range(netExpected.values.shape[0]):
-		if np.argmax(netOutput.values[n, :]) == np.argmax(netExpected.values[n, :]):
-			number_correct += 1
-	percent_correct = number_correct / netExpected.values.shape[0] * 100
-	print("Percentage of correct classification: {0}%".format(percent_correct))
-
-
-
 def create_autoencoder(data, weight_range_l, weight_range_h, sig_choice, eta, autoencoder_loops):
 
 	dataArray = classes.NN_Input(values=np.array(data))
@@ -134,7 +92,7 @@ def create_autoencoder(data, weight_range_l, weight_range_h, sig_choice, eta, au
 	AutoEncoder = classes.Network(layers=[])
 	nr_layers = int(input("-> AutoEncoder - Enter desired number of layers: "))
 	for i in range(nr_layers):
-		tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
+		tmp_number = int(input("Enter desired number of neurons in layer {0}: ".format(i)))
 		AutoEncoder.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
 
 	# The output layer (as many neurons as there are possible outputs)
@@ -213,7 +171,7 @@ def initialize_autoencoder_mlp(data_filename, weight_range_l, weight_range_h, si
 	# Read data
 	#[tmpIn, tmpExp] = fileHandling.readData(data_filename)
 	#categories = np.unique(tmpExp)
-	[tmpIn, tmpExp, categories] = xlsParser.read_xls_iris(data_filename)
+	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
 	nr_categories = len(categories)
 	trInput = classes.NN_Input(values=np.array(helpers.normalize_2d(tmpIn)))
 	trExpected = classes.NN_Output(values=np.array(tmpExp))
@@ -230,21 +188,18 @@ def initialize_autoencoder_mlp(data_filename, weight_range_l, weight_range_h, si
 	for i in range(nr_layers):
 		# Layer 0 has a part connected to raw inputs and a part connected to the existing encoder
 		if i == 0:
-			layer0_raw_neurons 	   = int(input("-> Enter desired number of neurons in layer {0} connected to the inputs: ".format(i)))
-			layer0_encoder_neurons = int(input("-> Enter desired number of neurons in layer {0} connected to the encoder outputs: ".format(i)))
+			layer0_raw_neurons 	   = int(input("Enter desired number of neurons in layer {0} connected to the inputs: ".format(i)))
+			layer0_encoder_neurons = int(input("Enter desired number of neurons in layer {0} connected to the encoder outputs: ".format(i)))
 			NeuralNetwork.add_layer(classes.Layer(nr_neurons=layer0_raw_neurons+layer0_encoder_neurons, neurons=[]))
 		else:
-			tmp_number = int(input("-> Enter desired number of neurons in layer {0}: ".format(i)))
+			tmp_number = int(input("Enter desired number of neurons in layer {0}: ".format(i)))
 			NeuralNetwork.add_layer(classes.Layer(nr_neurons=tmp_number, neurons=[]))
 
 	# The output layer (as many neurons as there are possible outputs)
 	NeuralNetwork.add_layer(classes.Layer(nr_neurons=nr_categories, neurons=[]))	
 
 	# Add connections into the network
-	InputList = []
-	for i in range(trInput.values.shape[1]):
-		# Encoder already initialized Input Value objects, need to use those
-		InputList.append(Encoder.layers[0].neurons[0].inputs[i].input)
+	InputList = Encoder.get_input_list() # The encoder already initialized network Input objects
 	# Connections for layer 0 raw neurons
 	for i in range(layer0_raw_neurons):	# Amount of raw neurons in the layer
 		for j in range(len(InputList)):	# Amount of inputs going into the network
@@ -300,3 +255,45 @@ def initialize_autoencoder_mlp(data_filename, weight_range_l, weight_range_h, si
 			# NeuralNetwork.debug() # Print out all values in the network (i.e. synapse weights)
 
 	return NeuralNetwork
+
+
+
+def run_mlp(data_filename, NeuralNetwork, sig_choice):
+
+	# Read data
+	[tmpIn, tmpExp, categories] = xlsParser.read_xls(data_filename)
+	nr_categories = len(categories)
+	netInput = classes.NN_Input(values=np.array(helpers.normalize_2d(tmpIn)))
+	netExpected = classes.NN_Output(values=np.array(tmpExp))
+	netOutput = classes.NN_Output(values=[])
+
+	# Getting a list of the network's input objects
+	InputList = NeuralNetwork.get_input_list()
+
+	# Pushing the data through the network
+	for n in range(netInput.values.shape[0]): # For each line of input data
+		for i in range(netInput.values.shape[1]): 	# Number of inputs
+			InputList[i].y = netInput.values[n, i]			# Set input values
+		NeuralNetwork.input_propagation(choice=sig_choice)
+
+		# Printing results for phase <n>
+		nnIn = []
+		nnExp = []
+		nnOut = []
+		for i in range(len(NeuralNetwork.layers[-1].neurons)):
+			nnExp.append(netExpected.values[n, i])
+			nnOut.append(NeuralNetwork.layers[-1].neurons[i].y)
+		# Printing results for loop <n>
+		nnIn.append(netInput.values[n])
+		#nnIn = ["%.2f" % float(elem) for elem in nnIn]
+		nnOut = ["%.2f" % float(elem) for elem in nnOut]
+		#print("Results for row {0}: Input {1}, Expected {2}, Output {3}".format(n, nnIn, nnExp, nnOut))
+		netOutput.values.append(nnOut)	# Adding results to output table
+	netOutput.values = np.array(netOutput.values)
+
+	number_correct = 0
+	for n in range(netExpected.values.shape[0]):
+		if np.argmax(netOutput.values[n, :]) == np.argmax(netExpected.values[n, :]):
+			number_correct += 1
+	percent_correct = number_correct / netExpected.values.shape[0] * 100
+	print("~> Percentage of correct classification: {0}%".format(percent_correct))
